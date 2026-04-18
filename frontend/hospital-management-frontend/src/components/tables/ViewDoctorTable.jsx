@@ -36,6 +36,7 @@ function ViewDoctorTable() {
   const [formMode, setFormMode] = useState("add");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [currentPatient, setCurrentPatient] = useState(null);
   
   const [currentDoctor, setCurrentDoctor] = useState({
     firstName: "",

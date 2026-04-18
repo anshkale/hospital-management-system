@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Create an Axios instance with custom configuration
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8080/hospital/", // Ensure this matches your backend URL
+  baseURL: "http://localhost:8080/hospital", // Ensure this matches your backend URL
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",

@@ -9,6 +9,7 @@ import DoctorProfile from './pages/DoctorProfile';
 import PatientProfile from './pages/PatientProfile';
 import NurseProfile from './pages/NurseProfile';
 import StaffProfile from './pages/StaffProfile';
+import ViewAppointments from './components/patient/ViewAppointments';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/patient/profile" element={<PatientProfile />} />
         <Route path="/nurse/profile" element={<NurseProfile />} />
         <Route path="/staff/profile" element={<StaffProfile />} />
+        <Route path="/view-appointments" element={<ViewAppointments />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>

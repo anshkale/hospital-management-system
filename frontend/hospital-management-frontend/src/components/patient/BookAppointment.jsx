@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { 
   Box, 
   Typography, 
@@ -71,7 +72,13 @@ const BookAppointment = () => {
 
     try {
       // Mock success response
-      const response = { data: { success: true } }; 
+      const response = await axios.post('http://localhost:8080/api/appointments/book', {
+  patientId: 1,        // replace with logged-in patient's ID
+  doctorId: formData.doctorId,
+  appointmentDate: formData.appointmentDate,
+  timeSlot: formData.timeSlot,
+  reason: formData.reason,
+});
       if (!response) {
         throw new Error('Failed to book appointment');
       }
