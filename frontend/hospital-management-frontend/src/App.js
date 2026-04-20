@@ -13,7 +13,7 @@ import ViewAppointments from './components/patient/ViewAppointments';
 
 function App() {
   return (
-    <Router basename="/LifeBridgeHospital"> {/* Set the basename to match your context path */}
+    <Router basename="/HealthCare"> {/* Set the basename to match your context path */}
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />

@@ -58,6 +58,15 @@ function LoginPage() {
 
       sessionStorage.setItem("token", response.token);
 
+      sessionStorage.setItem("user", JSON.stringify({
+  id: response.patientId || null,
+  patientId: response.patientId || null,
+  email: response.email || "",
+  role: response.role || "",
+  firstName: response.firstName || "",
+  lastName: response.lastName || "",
+}));
+
       const roleRoutes = {
         ROLE_PATIENT: "/patient/profile",
         ROLE_ADMIN: "/admin/profile",

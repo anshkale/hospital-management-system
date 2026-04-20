@@ -1,13 +1,11 @@
 package com.hospital.config;
 
-import java.util.Arrays;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.hospital.security.JwtAuthenticationFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -18,73 +16,70 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import jakarta.servlet.http.HttpServletResponse;
 
-import com.hospital.security.JwtAuthenticationFilter;
-import com.hospital.security.UserDetailsServiceImpl;
+import java.util.List;
 
-@EnableWebSecurity
 @Configuration
+@EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-	@Autowired
-	private UserDetailsServiceImpl detailsServiceImpl;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-	@Autowired
-	private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            // ── CORS must be first ──────────────────────────────────────────
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-		http.csrf(csrf -> csrf.disable()).cors(cors -> cors.configurationSource(corsConfigurationSource()))
-				.authorizeHttpRequests(authorizeRequests -> {
-					authorizeRequests
-							.requestMatchers("/", "/hospital/**", "/home", "/api/patients/register", "/api/login")
-							.permitAll().requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-							.requestMatchers("/api/doctor/**").hasAnyAuthority("ROLE_DOCTOR","ROLE_ADMIN")
-							.requestMatchers("/api/nurse/**").hasAuthority("ROLE_NURSE")
-							.requestMatchers("/api/staff/**").hasAuthority("ROLE_STAFF")
-							.requestMatchers("/api/patients/**").hasAnyAuthority("ROLE_PATIENT", "ROLE_ADMIN")
-							.anyRequest().authenticated();
-				}).exceptionHandling(
-						exception -> exception.authenticationEntryPoint((request, response, authException) -> {
-							response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-							response.setContentType("application/json");
-							response.getWriter().write("{\"error\": \"" + authException.getMessage() + "\"}");
-						}))
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            // ── Disable CSRF (REST API, no sessions) ────────────────────────
+            .csrf(csrf -> csrf.disable())
 
-		return http.build();
-	}
+            // ── Stateless session ───────────────────────────────────────────
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-	@Bean
-	public AuthenticationProvider authenticationProvider() {
-		DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-		provider.setUserDetailsService(detailsServiceImpl);
-		provider.setPasswordEncoder(passwordEncoder());
-		return provider;
-	}
+            // ── Public vs protected endpoints ───────────────────────────────
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                    "/api/login",
+                    "/api/register",
+                    "/api/patients/register",
+                    "/api/doctors/register",
+                    "/error"
+                ).permitAll()
+                .anyRequest().authenticated()
+            )
 
-	@Bean
-	public PasswordEncoder passwordEncoder() {
-		return new BCryptPasswordEncoder();
-	}
+            // ── JWT filter ──────────────────────────────────────────────────
+            .addFilterBefore(jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter.class);
 
-	@Bean
-	public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
-		return http.getSharedObject(AuthenticationManagerBuilder.class).userDetailsService(detailsServiceImpl)
-				.passwordEncoder(passwordEncoder()).and().build();
-	}
+        return http.build();
+    }
 
-	@Bean
-	public CorsConfigurationSource corsConfigurationSource() {
-		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // Frontend URL
-		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE"));
-		configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
-		configuration.setAllowCredentials(true); // Allow session cookies
-		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-		source.registerCorsConfiguration("/**", configuration);
-		return source;
-	}
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
 }

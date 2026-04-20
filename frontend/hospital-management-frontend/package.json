@@ -1,7 +1,7 @@
 {
   "name": "hospital-management-frontend",
   "version": "0.1.0",
-  "homepage": "/LifeBridgeHospital",
+  "homepage": "/HealthCare",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.13.3",
