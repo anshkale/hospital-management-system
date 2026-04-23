@@ -62,10 +62,10 @@ function Footer() {
                   fontFamily: '"Playfair Display", serif',
                   fontWeight: 700, fontSize: '1.1rem', color: '#fff', lineHeight: 1.1,
                 }}>
-                  LifeBridge
+                  HEALTH
                 </Typography>
                 <Typography sx={{ fontSize: '0.6rem', color: '#2ecc71', letterSpacing: '0.15em', fontWeight: 600 }}>
-                  HOSPITAL
+                  CARE
                 </Typography>
               </Box>
             </Box>
@@ -156,7 +156,7 @@ function Footer() {
               Ready to transform your hospital?
             </Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem' }}>
-              Join thousands of healthcare providers using LifeBridge.
+              Join thousands of healthcare providers using HealthCare.
             </Typography>
           </Box>
           <Button
@@ -187,7 +187,7 @@ function Footer() {
         {/* Bottom bar */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
           <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>
-            © 2024 LifeBridge Hospital. All rights reserved.
+            © 2024 HealthCare. All rights reserved.
           </Typography>
           <Box sx={{ display: 'flex', gap: 3 }}>
             {['Privacy', 'Terms', 'Cookies'].map((item) => (

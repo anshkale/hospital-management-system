@@ -61,18 +61,19 @@ function LoginPage() {
       sessionStorage.setItem("user", JSON.stringify({
   id: response.patientId || null,
   patientId: response.patientId || null,
+    adminId:     response.adminId    || null,   // ← add this
+  doctorId:    response.doctorId   || null,  
   email: response.email || "",
   role: response.role || "",
   firstName: response.firstName || "",
   lastName: response.lastName || "",
+    specialization: response.specialization || "",
 }));
 
       const roleRoutes = {
         ROLE_PATIENT: "/patient/profile",
         ROLE_ADMIN: "/admin/profile",
         ROLE_DOCTOR: "/doctor/profile",
-        ROLE_NURSE: "/nurse/profile",
-        ROLE_STAFF: "/staff/profile",
       };
 
       const route = roleRoutes[response.role];
@@ -82,11 +83,13 @@ function LoginPage() {
         setMessage("Unknown role. Please contact support.");
       }
     } catch (error) {
-      console.error("Login error:", error);
-      setMessage("Login failed. Please check your credentials or try again later.");
-    } finally {
-      setLoading(false);
-    }
+  console.error("Login error:", error);
+  // ← Show actual server message if available, fallback to generic
+  const serverMessage = error?.response?.data?.message;
+  setMessage(serverMessage || "Login failed. Please check your credentials or try again later.");
+} finally {
+  setLoading(false);
+}
   };
 
   // Shared TextField styles

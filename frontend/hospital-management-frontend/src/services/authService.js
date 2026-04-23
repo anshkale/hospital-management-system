@@ -1,15 +1,11 @@
-import axiosInstance from "../api/axiosConfig";
+import axiosInstance from '../api/axiosConfig'; // ← must use axiosInstance
 
 export const loginUser = async (credentials) => {
   try {
-    const response = await axiosInstance.post("api/login", credentials);
-    console.log(response.data);
-    return response.data;
+    const response = await axiosInstance.post('/api/login', credentials);
+    return response.data; // { success, token, role, patientId, email, firstName, lastName }
   } catch (error) {
-    if (error.response) {
-      throw error.response.data.message || "Invalid email or password";
-    } else {
-      throw error.message || "Unknown error occurred during login";
-    }
+    // Re-throw so LoginPage catch block can show the error message
+    throw error;
   }
 };

@@ -16,7 +16,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/appointments")
-@CrossOrigin(origins = "http://localhost:3000")
 @RequiredArgsConstructor
 public class AppointmentController {
 
@@ -63,20 +62,70 @@ public class AppointmentController {
     }
 
     // Get all appointments for a patient
-    @GetMapping("/patient/{patientId}")
-    public ResponseEntity<List<Appointment>> getByPatient(@PathVariable Long patientId) {
-        return ResponseEntity.ok(
-            appointmentRepository.findByPatientPatientIdOrderByAppointmentDateDesc(patientId)
-        );
+    // Replace the getByPatient method with this:
+@GetMapping("/patient/{patientId}")
+public ResponseEntity<?> getByPatient(@PathVariable Long patientId) {
+    try {
+        List<Appointment> appointments =
+            appointmentRepository.findByPatientPatientIdOrderByAppointmentDateDesc(patientId);
+
+        // Map to safe response — no password fields exposed
+        List<Map<String, Object>> result = appointments.stream().map(appt -> {
+            Map<String, Object> map = new java.util.LinkedHashMap<>();
+            map.put("id",              appt.getId());
+            map.put("appointmentDate", appt.getAppointmentDate());
+            map.put("timeSlot",        appt.getTimeSlot());
+            map.put("reason",          appt.getReason());
+            map.put("status",          appt.getStatus());
+            map.put("createdAt",       appt.getCreatedAt());
+
+            // Doctor info
+            if (appt.getDoctor() != null) {
+                Map<String, Object> doc = new java.util.LinkedHashMap<>();
+                doc.put("id",             appt.getDoctor().getId());
+                doc.put("firstName",      appt.getDoctor().getFirstName());
+                doc.put("lastName",       appt.getDoctor().getLastName());
+                doc.put("specialization", appt.getDoctor().getSpecialization());
+                map.put("doctor", doc);
+            }
+
+            // Patient info (minimal)
+            if (appt.getPatient() != null) {
+                Map<String, Object> pat = new java.util.LinkedHashMap<>();
+                pat.put("patientId",  appt.getPatient().getPatientId());
+                pat.put("firstName",  appt.getPatient().getFirstName());
+                pat.put("lastName",   appt.getPatient().getLastName());
+                map.put("patient", pat);
+            }
+
+            return map;
+        }).toList();
+
+        return ResponseEntity.ok(result);
+
+    } catch (Exception e) {
+        return ResponseEntity.internalServerError().body(Map.of(
+            "success", false,
+            "message", e.getMessage()
+        ));
     }
+}
 
     // Get all appointments for a doctor
-    @GetMapping("/doctor/{doctorId}")
-    public ResponseEntity<List<Appointment>> getByDoctor(@PathVariable Long doctorId) {
-        return ResponseEntity.ok(
-            appointmentRepository.findByDoctorIdOrderByAppointmentDateDesc(doctorId)
-        );
+    // Replace the getByDoctor method with this:
+@GetMapping("/doctor/{doctorId}")
+public ResponseEntity<?> getByDoctor(@PathVariable Long doctorId) {
+    try {
+        List<Appointment> appointments =
+            appointmentRepository.findByDoctor_IdOrderByAppointmentDateDesc(doctorId);
+        return ResponseEntity.ok(appointments);
+    } catch (Exception e) {
+        return ResponseEntity.internalServerError().body(Map.of(
+            "success", false,
+            "message", e.getMessage()
+        ));
     }
+}
 
     // Get all appointments (admin)
     @GetMapping("/all")
@@ -105,4 +154,16 @@ public class AppointmentController {
             return ResponseEntity.ok(Map.of("success", true, "message", "Appointment cancelled"));
         }).orElse(ResponseEntity.notFound().build());
     }
+
+    // Add this to AppointmentController.java:
+@DeleteMapping("/{id}/permanent")
+public ResponseEntity<?> permanentDelete(@PathVariable Long id) {
+    return appointmentRepository.findById(id).map(appt -> {
+        appointmentRepository.delete(appt); // ← actually removes from DB
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Appointment permanently deleted"
+        ));
+    }).orElse(ResponseEntity.notFound().build());
+}
 }

@@ -1,159 +1,95 @@
 package com.hospital.controller;
 
-import java.util.List;
+import com.hospital.entity.Doctor;
+import com.hospital.repository.DoctorRepository;
+import lombok.RequiredArgsConstructor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import com.hospital.dto.request.DoctorRequest;
-import com.hospital.dto.response.DoctorResponse;
-import com.hospital.exception.EmailAlreadyExistsException;
-import com.hospital.security.SecurityUtil;
-import com.hospital.service.DoctorService;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-import jakarta.validation.Valid;
+
 
 @RestController
 @RequestMapping("/api/doctors")
+@RequiredArgsConstructor
 public class DoctorController {
 
-	private static final Logger logger = LoggerFactory.getLogger(DoctorController.class);
+    private final DoctorRepository doctorRepository;
+        @Autowired
+private PasswordEncoder passwordEncoder;
 
-	@Autowired
-	private DoctorService doctorService;
+    // GET /api/doctors/all
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllDoctors() {
+        try {
+            List<Doctor> doctors = doctorRepository.findAll();
+            List<Map<String, Object>> result = doctors.stream().map(doc -> {
+                Map<String, Object> map = new java.util.LinkedHashMap<>();
+                map.put("id",             doc.getId());
+                map.put("firstName",      doc.getFirstName());
+                map.put("lastName",       doc.getLastName());
+                map.put("specialization", doc.getSpecialization());
+                map.put("email",          doc.getEmail());
+                map.put("phoneNumber",    doc.getPhoneNumber());
+                map.put("gender",         doc.getGender());
+                map.put("city",           doc.getCity());
+                map.put("state",          doc.getState());
+                map.put("bloodGroup",     doc.getBloodGroup());
+                map.put("joiningDate",    doc.getJoiningDate());
+                return map;
+            }).collect(Collectors.toList());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                "success", false, "message", e.getMessage()
+            ));
+        }
+    }
 
-	@Autowired
-	private  SecurityUtil securityUtil;
+    @PostMapping("/register")
+public ResponseEntity<?> registerDoctor(@RequestBody Doctor doctor) {
+    try {
+        // Check email not already taken
+        if (doctorRepository.findByEmail(doctor.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", "Email already registered."
+            ));
+        }
+        // Hash the password before saving
+        doctor.setPassword(passwordEncoder.encode(doctor.getPassword()));
+        Doctor saved = doctorRepository.save(doctor);
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "Doctor registered successfully",
+            "doctorId", saved.getId()
+        ));
+    } catch (Exception e) {
+        return ResponseEntity.internalServerError().body(Map.of(
+            "success", false, "message", e.getMessage()
+        ));
+    }
+}
 
-	@PostMapping("/registerDoctor")
-	public ResponseEntity<?> registerDoctor(@Valid @RequestBody DoctorRequest request) {
-		try {
-			DoctorResponse response = doctorService.registerDoctor(request);
-			return ResponseEntity.ok(response);
-		} catch (EmailAlreadyExistsException e) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email is already registered.");
-		} catch (Exception e) {
-			logger.error("Error registering doctor: ", e);
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("An unexpected error occurred: " + e.getMessage());
-		}
-	}
-
-	@GetMapping("/fetchAllDoctors")
-	public ResponseEntity<?> getAllDoctors() {
-		try {
-			Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-			if (!securityUtil.isAdmin(authentication)) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN)
-						.body("Access denied. Only administrators can access this resource.");
-			}
-
-			List<DoctorResponse> doctorResponses = doctorService.fetchAllDoctors();
-			return ResponseEntity.ok(doctorResponses);
-		} catch (Exception e) {
-			logger.error("Error fetching all doctors: ", e);
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("An error occurred while fetching doctor details: " + e.getMessage());
-		}
-	}
-
-	@GetMapping("/details/{email}")
-	public ResponseEntity<?> getDoctorDetails(@PathVariable String email) {
-		try {
-			Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-			UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-
-			if (!securityUtil.isAdmin(authentication) && !userDetails.getUsername().equals(email)) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN)
-						.body("Access denied. You can only view your own details.");
-			}
-
-			DoctorResponse doctor = doctorService.fetchDoctorByEmail(email);
-			if (doctor == null) {
-				return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Doctor not found with email: " + email);
-			}
-
-			return ResponseEntity.ok(doctor);
-		} catch (Exception e) {
-			logger.error("Error fetching doctor details: ", e);
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("An error occurred while fetching doctor details");
-		}
-	}
-
-	@GetMapping("/mydetails")
-	public ResponseEntity<?> getMyDetails() {
-		try {
-			Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-			String email = ((UserDetails) authentication.getPrincipal()).getUsername();
-
-			DoctorResponse doctor = doctorService.fetchDoctorByEmail(email);
-			if (doctor == null) {
-				return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Doctor details not found");
-			}
-
-			return ResponseEntity.ok(doctor);
-		} catch (Exception e) {
-			logger.error("Error fetching doctor details: ", e);
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("An error occurred while fetching your details");
-		}
-	}
-
-	@PutMapping("/update/{email}")
-	public ResponseEntity<?> updateDoctor(@PathVariable String email,
-			@Valid @RequestBody DoctorResponse updatedDoctor) {
-		try {
-			Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-			UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-
-			if (!securityUtil.isAdmin(authentication) && !userDetails.getUsername().equals(email)) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN)
-						.body("Access denied. You can only update your own details.");
-			}
-
-			DoctorResponse updated = doctorService.updateDoctor(email, updatedDoctor);
-			return ResponseEntity.ok(updated);
-		} catch (IllegalArgumentException e) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data provided: " + e.getMessage());
-		} catch (Exception e) {
-			logger.error("Error updating doctor: ", e);
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("An error occurred while updating doctor details");
-		}
-	}
-
-	@DeleteMapping("/delete/{email}")
-	public ResponseEntity<?> deleteDoctor(@PathVariable String email) {
-		try {
-			Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-			UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-
-			if (!securityUtil.isAdmin(authentication) && !userDetails.getUsername().equals(email)) {
-				return ResponseEntity.status(HttpStatus.FORBIDDEN)
-						.body("Access denied. You can only delete your own details.");
-			}
-
-			boolean deleted = doctorService.deleteDoctor(email);
-
-			if (deleted) {
-				return ResponseEntity.ok("Doctor deleted successfully.");
-			} else {
-				return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Doctor not found with the provided email.");
-			}
-		} catch (Exception e) {
-			logger.error("Error deleting doctor: ", e);
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-					.body("An error occurred while deleting doctor details.");
-		}
-	}
-
+    // DELETE /api/doctors/{id}  ← ADD THIS
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteDoctor(@PathVariable Long id) {
+        try {
+            if (!doctorRepository.existsById(id)) {
+                return ResponseEntity.notFound().build();
+            }
+            doctorRepository.deleteById(id);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Doctor deleted successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                "success", false, "message", e.getMessage()
+            ));
+        }
+    }
 }

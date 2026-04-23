@@ -1,43 +1,38 @@
 import axios from "axios";
 
-// Create an Axios instance with custom configuration
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8080/hospital", // Ensure this matches your backend URL
+  baseURL: "http://localhost:8080/hospital",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  withCredentials: true, // Use this if you need to include cookies (e.g., for session management)
+  withCredentials: true,
 });
 
-// Interceptor to add Authorization token (JWT) if available
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Retrieve token from sessionStorage
     const token = sessionStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Interceptor for handling responses and errors globally
 axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // Handle Unauthorized error (401) and other errors
-    if (error.response && error.response.status === 401) {
-      console.error("Unauthorized! Please log in again.");
-      // Optionally, redirect to login page
-      window.location.href = "LifeBridgeHospital/login";
+    if (error.response?.status === 401) {
+      const requestUrl = error.config?.url || '';
+      // ← Only redirect if it's NOT the login endpoint
+      // A 401 on /api/login means wrong password — let LoginPage handle it
+      if (!requestUrl.includes('/api/login')) {
+        console.error("Session expired. Redirecting to login.");
+        window.location.href = "/HealthCare/login";
+      }
     }
-    return Promise.reject(error);
+    return Promise.reject(error); // always reject so components can catch it
   }
 );
 

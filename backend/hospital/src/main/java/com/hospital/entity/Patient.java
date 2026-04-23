@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -52,6 +54,7 @@ public class Patient {
    
     private String country;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String password; // This should be encrypted using BCrypt
 

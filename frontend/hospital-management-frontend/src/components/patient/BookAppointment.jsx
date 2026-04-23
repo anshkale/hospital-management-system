@@ -1,81 +1,113 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../api/axiosConfig';
 import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Grid,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Select,
-  Alert,
-  CircularProgress
+  Box, Typography, TextField, Button, Grid,
+  MenuItem, FormControl, InputLabel, Select,
+  Alert, CircularProgress, Collapse
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { useNavigate } from 'react-router-dom';
+
+// ── Predefined reasons ─────────────────────────────────────────────────────
+const PREDEFINED_REASONS = [
+  'General Checkup',
+  'Fever / Cold / Flu',
+  'Body Pain / Muscle Ache',
+  'Headache / Migraine',
+  'Skin Problem / Rash',
+  'Stomach Pain / Digestive Issues',
+  'Heart / Chest Pain',
+  'Diabetes Consultation',
+  'Blood Pressure Monitoring',
+  'Eye / Vision Problem',
+  'Dental Pain',
+  'Mental Health / Anxiety',
+  'Pregnancy / Gynecology',
+  'Child Health / Pediatrics',
+  'Follow-up Visit',
+  'Others',  // ← triggers text box
+];
 
 const BookAppointment = () => {
-  const [doctors, setDoctors] = useState([]);
-  const [timeSlots, setTimeSlots] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const navigate = useNavigate();
+  const [doctors, setDoctors]               = useState([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
+  const [doctorsError, setDoctorsError]     = useState('');
+  const [timeSlots, setTimeSlots]           = useState([]);
+  const [loading, setLoading]               = useState(false);
+  const [error, setError]                   = useState('');
+  const [success, setSuccess]               = useState('');
+  const [selectedReason, setSelectedReason] = useState('');
+  const [customReason, setCustomReason]     = useState('');
 
   const [formData, setFormData] = useState({
-    doctorId: '',
+    doctorId:        '',
     appointmentDate: null,
-    timeSlot: '',
-    reason: '',
+    timeSlot:        '',
+    reason:          '',
   });
 
-  // ── Get logged-in patient ID from session ──────────────────────────────────
   const getPatientId = () => {
     try {
       const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-      return user.id || user.patientId || null;
-    } catch {
-      return null;
-    }
+      return user.patientId || user.id || null;
+    } catch { return null; }
   };
 
-  // ── Fetch real doctors from DB ─────────────────────────────────────────────
+  // ── Fetch doctors ──────────────────────────────────────────────────────
   useEffect(() => {
     const fetchDoctors = async () => {
+      setDoctorsLoading(true);
+      setDoctorsError('');
       try {
         const res = await axiosInstance.get('/api/doctors/all');
-        setDoctors(res.data);
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setDoctors(res.data);
+        } else {
+          setDoctorsError('No doctors found in the system.');
+        }
       } catch (err) {
-        // Fallback to mock if API not ready
-        setDoctors([
-          { id: 1, firstName: 'John', lastName: 'Doe', specialization: 'Cardiologist' },
-          { id: 2, firstName: 'Jane', lastName: 'Smith', specialization: 'Dermatologist' },
-          { id: 3, firstName: 'Alice', lastName: 'Brown', specialization: 'Orthopedic' },
-        ]);
+        console.error('Doctors fetch failed:', err);
+        setDoctorsError(
+          err?.response?.status === 403 ? 'Access denied. Check SecurityConfig.' :
+          err?.response?.status === 404 ? 'Endpoint not found.' :
+          `Failed to load doctors: ${err?.message}`
+        );
+      } finally {
+        setDoctorsLoading(false);
       }
     };
     fetchDoctors();
   }, []);
 
-  const generateTimeSlots = () => {
+  // ── Generate time slots ────────────────────────────────────────────────
+  useEffect(() => {
     const slots = [];
     for (let hour = 9; hour < 17; hour++) {
       slots.push(`${hour.toString().padStart(2, '0')}:00`);
       slots.push(`${hour.toString().padStart(2, '0')}:30`);
     }
     setTimeSlots(slots);
+  }, []);
+
+  // ── Handle reason dropdown change ──────────────────────────────────────
+  const handleReasonChange = (e) => {
+    const value = e.target.value;
+    setSelectedReason(value);
+    setCustomReason(''); // reset custom text when switching
+    if (value !== 'Others') {
+      setFormData({ ...formData, reason: value });
+    } else {
+      setFormData({ ...formData, reason: '' }); // wait for custom input
+    }
   };
 
-  const handleDateChange = (date) => {
-    setFormData({ ...formData, appointmentDate: date });
-    generateTimeSlots();
+  const handleCustomReasonChange = (e) => {
+    setCustomReason(e.target.value);
+    setFormData({ ...formData, reason: e.target.value });
   };
 
-  // ── Submit: save to real database ─────────────────────────────────────────
+  // ── Submit ─────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -95,27 +127,30 @@ const BookAppointment = () => {
       return;
     }
 
+    // Validate custom reason if Others selected
+    if (selectedReason === 'Others' && !customReason.trim()) {
+      setError('Please describe your reason for visit.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Format date as YYYY-MM-DD
       const dateStr = formData.appointmentDate instanceof Date
         ? formData.appointmentDate.toISOString().split('T')[0]
         : formData.appointmentDate;
 
       const payload = {
-        patientId: patientId,
-        doctorId: formData.doctorId,
+        patientId:       patientId,
+        doctorId:        formData.doctorId,
         appointmentDate: dateStr,
-        timeSlot: formData.timeSlot,
-        reason: formData.reason,
+        timeSlot:        formData.timeSlot,
+        reason:          formData.reason,
       };
 
       const response = await axiosInstance.post('/api/appointments/book', payload);
 
       if (response.data?.success) {
         setSuccess('Appointment booked successfully!');
-        setTimeout(() => {
-          navigate('/LifeBridgeHospital/view-appointments');
-        }, 1500);
       } else {
         throw new Error(response.data?.message || 'Booking failed');
       }
@@ -126,26 +161,46 @@ const BookAppointment = () => {
     }
   };
 
+  // ── Shared select styles ───────────────────────────────────────────────
+  const selectSx = {
+    borderRadius: '12px',
+    backgroundColor: '#f8fffe',
+    '& fieldset': { borderColor: 'rgba(10,58,46,0.2)' },
+    '&:hover fieldset': { borderColor: 'rgba(10,58,46,0.5)' },
+    '&.Mui-focused fieldset': { borderColor: '#0a3a2e', borderWidth: '2px' },
+  };
+
   return (
-    <Box sx={{ p: 3, maxWidth: 600, mx: 'auto', boxShadow: 3, borderRadius: 2 }}>
-      <Typography variant="h5" gutterBottom fontWeight={700}>
+    <Box sx={{
+      p: 3, maxWidth: 600, mx: 'auto',
+      boxShadow: '0 8px 32px rgba(10,58,46,0.10)',
+      borderRadius: 4, bgcolor: '#fff'
+    }}>
+      <Typography variant="h5" gutterBottom fontWeight={700} sx={{ color: '#0a3a2e' }}>
         Book an Appointment
       </Typography>
 
-      {error   && <Alert severity="error"   sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+      {error   && <Alert severity="error"   sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{success}</Alert>}
 
       <form onSubmit={handleSubmit}>
         <Grid container spacing={3}>
 
-          {/* Doctor select */}
+          {/* ── Doctor ──────────────────────────────────────────────────── */}
           <Grid item xs={12}>
+            {doctorsError && (
+              <Alert severity="warning" sx={{ mb: 1 }}>{doctorsError}</Alert>
+            )}
             <FormControl fullWidth required>
-              <InputLabel>Select Doctor</InputLabel>
+              <InputLabel>
+                {doctorsLoading ? 'Loading doctors...' : 'Select Doctor'}
+              </InputLabel>
               <Select
                 value={formData.doctorId}
-                label="Select Doctor"
+                label={doctorsLoading ? 'Loading doctors...' : 'Select Doctor'}
                 onChange={(e) => setFormData({ ...formData, doctorId: e.target.value })}
+                disabled={doctorsLoading || doctors.length === 0}
+                sx={selectSx}
               >
                 {doctors.map((doctor) => (
                   <MenuItem key={doctor.id} value={doctor.id}>
@@ -157,20 +212,29 @@ const BookAppointment = () => {
             </FormControl>
           </Grid>
 
-          {/* Date picker */}
+          {/* ── Date ────────────────────────────────────────────────────── */}
           <Grid item xs={12}>
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <DatePicker
                 label="Appointment Date"
                 value={formData.appointmentDate}
-                onChange={handleDateChange}
+                onChange={(date) => setFormData({ ...formData, appointmentDate: date })}
                 minDate={new Date()}
-                slotProps={{ textField: { fullWidth: true, required: true } }}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    required: true,
+                    sx: {
+                      '& .MuiOutlinedInput-root': selectSx,
+                      '& .MuiInputLabel-root.Mui-focused': { color: '#0a3a2e' },
+                    }
+                  }
+                }}
               />
             </LocalizationProvider>
           </Grid>
 
-          {/* Time slot */}
+          {/* ── Time slot ───────────────────────────────────────────────── */}
           <Grid item xs={12}>
             <FormControl fullWidth required>
               <InputLabel>Select Time Slot</InputLabel>
@@ -178,52 +242,92 @@ const BookAppointment = () => {
                 value={formData.timeSlot}
                 label="Select Time Slot"
                 onChange={(e) => setFormData({ ...formData, timeSlot: e.target.value })}
-                disabled={timeSlots.length === 0}
+                sx={selectSx}
               >
-                {timeSlots.length > 0 ? (
-                  timeSlots.map((slot) => (
-                    <MenuItem key={slot} value={slot}>{slot}</MenuItem>
-                  ))
-                ) : (
-                  <MenuItem value="" disabled>Select a date first</MenuItem>
-                )}
+                {timeSlots.map((slot) => (
+                  <MenuItem key={slot} value={slot}>{slot}</MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
 
-          {/* Reason */}
+          {/* ── Reason dropdown ─────────────────────────────────────────── */}
           <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Reason for Visit"
-              multiline
-              rows={4}
-              value={formData.reason}
-              onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-              required
-            />
+            <FormControl fullWidth required>
+              <InputLabel>Reason for Visit</InputLabel>
+              <Select
+                value={selectedReason}
+                label="Reason for Visit"
+                onChange={handleReasonChange}
+                sx={selectSx}
+              >
+                {PREDEFINED_REASONS.map((reason) => (
+                  <MenuItem
+                    key={reason}
+                    value={reason}
+                    sx={reason === 'Others' ? {
+                      borderTop: '1px solid rgba(10,58,46,0.15)',
+                      mt: 0.5,
+                      fontStyle: 'italic',
+                      color: '#0a3a2e',
+                      fontWeight: 600,
+                    } : {}}
+                  >
+                    {reason}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
 
-          {/* Submit */}
+          {/* ── Custom reason — only shows when "Others" is selected ─────── */}
+          <Grid item xs={12}>
+            <Collapse in={selectedReason === 'Others'}>
+              <TextField
+                fullWidth
+                label="Please describe your reason"
+                multiline
+                rows={3}
+                value={customReason}
+                onChange={handleCustomReasonChange}
+                required={selectedReason === 'Others'}
+                placeholder="Describe your symptoms or reason for visit..."
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    ...selectSx,
+                    borderRadius: '12px',
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': { color: '#0a3a2e' },
+                }}
+              />
+            </Collapse>
+          </Grid>
+
+          {/* ── Submit ──────────────────────────────────────────────────── */}
           <Grid item xs={12}>
             <Button
               type="submit"
               variant="contained"
               fullWidth
-              disabled={loading}
+              disabled={loading || doctorsLoading}
               sx={{
                 py: 1.5,
                 background: 'linear-gradient(135deg, #0a3a2e, #0f5c45)',
                 '&:hover': { background: 'linear-gradient(135deg, #0d4d3a, #1a7a5e)' },
+                '&:disabled': { opacity: 0.7 },
                 borderRadius: '12px',
                 textTransform: 'none',
                 fontWeight: 700,
                 fontSize: '1rem',
+                boxShadow: '0 6px 25px rgba(10,58,46,0.25)',
               }}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Book Appointment'}
+              {loading
+                ? <CircularProgress size={24} color="inherit" />
+                : 'Book Appointment'}
             </Button>
           </Grid>
+
         </Grid>
       </form>
     </Box>

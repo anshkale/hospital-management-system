@@ -1,10 +1,13 @@
 package com.hospital.config;
 
 import com.hospital.security.JwtAuthenticationFilter;
+import com.hospital.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -25,33 +28,41 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final UserDetailsServiceImpl userDetailsService; // ← ADD THIS
+
+    // ── This is the missing piece — tells Spring HOW to authenticate ───────
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService); // ← use our UserDetailsServiceImpl
+        provider.setPasswordEncoder(passwordEncoder());     // ← use BCrypt
+        return provider;
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // ── CORS must be first ──────────────────────────────────────────
+            .authenticationProvider(authenticationProvider()) // ← ADD THIS
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-            // ── Disable CSRF (REST API, no sessions) ────────────────────────
             .csrf(csrf -> csrf.disable())
-
-            // ── Stateless session ───────────────────────────────────────────
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // ── Public vs protected endpoints ───────────────────────────────
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
                     "/api/login",
                     "/api/register",
                     "/api/patients/register",
                     "/api/doctors/register",
+                    "/api/doctors/all",
+                    "/api/appointments/**",
+                    "/api/setup-admin",
+                    "/api/generate-hash",
                     "/error"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
-
-            // ── JWT filter ──────────────────────────────────────────────────
             .addFilterBefore(jwtAuthenticationFilter,
                 UsernamePasswordAuthenticationFilter.class);
 

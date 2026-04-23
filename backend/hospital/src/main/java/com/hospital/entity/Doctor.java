@@ -6,6 +6,8 @@ import lombok.Data;
 
 import java.time.LocalDate;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Data
 @Entity
 @Table(name = "doctors")
@@ -48,6 +50,7 @@ public class Doctor {
 	@NotBlank(message = "Country is required")
 	private String country;
 
+	@JsonIgnore
 	@NotBlank(message = "Password is required")
 	@Size(min = 8, message = "Password must be at least 8 characters long")
 	private String password;

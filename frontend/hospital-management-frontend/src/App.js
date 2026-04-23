@@ -7,8 +7,6 @@ import RegisterPatient from './pages/RegisterPatient';
 import AdminProfile from './pages/AdminProfile';
 import DoctorProfile from './pages/DoctorProfile';
 import PatientProfile from './pages/PatientProfile';
-import NurseProfile from './pages/NurseProfile';
-import StaffProfile from './pages/StaffProfile';
 import ViewAppointments from './components/patient/ViewAppointments';
 
 function App() {
@@ -21,8 +19,6 @@ function App() {
         <Route path="/admin/profile" element={<AdminProfile />} />
         <Route path="/doctor/profile" element={<DoctorProfile/>} />
         <Route path="/patient/profile" element={<PatientProfile />} />
-        <Route path="/nurse/profile" element={<NurseProfile />} />
-        <Route path="/staff/profile" element={<StaffProfile />} />
         <Route path="/view-appointments" element={<ViewAppointments />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
