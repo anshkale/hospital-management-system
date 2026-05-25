@@ -14,4 +14,16 @@ public class RouteController {
     public String forward() {
         return "forward:/HealthCare/index.html";
     }
+
+    @RequestMapping(value = {
+        "",
+        "/",
+        "/healthcare",
+        "/Healthcare",
+        "/healthcare/{path:[^\\.]*}",
+        "/Healthcare/{path:[^\\.]*}"
+    })
+    public String redirectToCapitalized() {
+        return "redirect:/hospital/HealthCare";
+    }
 }
