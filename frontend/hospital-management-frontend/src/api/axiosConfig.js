@@ -1,10 +1,11 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8080/hospital",
+  baseURL: "/hospital",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
+    "Bypass-Tunnel-Reminder": "true",
   },
   withCredentials: true,
 });

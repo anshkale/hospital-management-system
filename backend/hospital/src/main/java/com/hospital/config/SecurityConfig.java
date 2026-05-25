@@ -59,7 +59,9 @@ public class SecurityConfig {
                     "/api/appointments/**",
                     "/api/setup-admin",
                     "/api/generate-hash",
-                    "/error"
+                    "/error",
+                    "/HealthCare/**",
+                    "/HealthCare"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
@@ -72,7 +74,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

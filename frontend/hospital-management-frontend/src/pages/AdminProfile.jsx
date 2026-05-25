@@ -143,15 +143,18 @@ function DashboardOverview({ setActive }) {
 
   useEffect(() => {
     const token   = sessionStorage.getItem("token");
-    const headers = { Authorization: `Bearer ${token}` };
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "Bypass-Tunnel-Reminder": "true"
+    };
 
     Promise.all([
       // ← fixed URL to match your PatientController
-      fetch("http://localhost:8080/hospital/api/patients/fetchAllPatients", { headers })
+      fetch("/hospital/api/patients/fetchAllPatients", { headers })
         .then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch("http://localhost:8080/hospital/api/doctors/all", { headers })
+      fetch("/hospital/api/doctors/all", { headers })
         .then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch("http://localhost:8080/hospital/api/appointments/all", { headers })
+      fetch("/hospital/api/appointments/all", { headers })
         .then(r => r.ok ? r.json() : []).catch(() => []),
     ]).then(([p, d, a]) => {
       const pArr = Array.isArray(p) ? p : [];
