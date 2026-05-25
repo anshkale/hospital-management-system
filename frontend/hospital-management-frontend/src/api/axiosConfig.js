@@ -30,7 +30,7 @@ axiosInstance.interceptors.response.use(
       // A 401 on /api/login means wrong password — let LoginPage handle it
       if (!requestUrl.includes('/api/login')) {
         console.error("Session expired. Redirecting to login.");
-        window.location.href = "/HealthCare/login";
+        window.location.href = "/hospital/HealthCare/login";
       }
     }
     return Promise.reject(error); // always reject so components can catch it
